@@ -3,14 +3,12 @@ from pydantic import BaseModel
 from typing import Optional
 from config import token_secret
 
-
-
 app = FastAPI()
 
 # states
 baseline_signature = [0, 0, 0, 0]
-items = {} #id: {name, signature}
-removed_items = {} #id
+items = {} 
+removed_items = {}
 next_id = 1
 
 #todo: replace with secure token management
@@ -19,7 +17,7 @@ TOKEN = token_secret.TOKEN
 #models
 class SensorUpdate(BaseModel):
     token: str
-    sensors: list[float]
+    signature: list[float]
     name: Optional[str] = None
 
 class RegisterItem(BaseModel):
@@ -90,19 +88,19 @@ def check_token(token):
         raise HTTPException(status_code=401, detail="Invalid token")
 
 #endpoints
-#todo: implement token authentication and handshake
+
 @app.get("/")
 async def root():
-    return {"message": "Hello client!"}
+    return {"message": "ok", "status": "200"}
 
 @app.post("/update")
 def update(data: SensorUpdate):
     check_token(data.token)
     global baseline_signature, next_id
 
-    delta = compute_delta(data.sensors)
+    delta = compute_delta(data.signature)
     weight = compute_weight(delta)
-    baseline_signature = data.sensors
+    baseline_signature = data.signature.copy()
 
     #remove
     if weight < 0:
@@ -138,6 +136,7 @@ def update(data: SensorUpdate):
 def add_item(data: AddItem):
     check_token(data.token)
     global next_id
+    global baseline_signature
     item_id = next_id
     next_id += 1
     items[item_id] = {"name": data.name, "signature": baseline_signature.copy(), "weight": 0}
@@ -147,14 +146,17 @@ def add_item(data: AddItem):
 @app.post("/register_item")
 def register_item(data: RegisterItem):
     check_token(data.token)
+    global baseline_signature
     if data.item_id not in items:
         raise HTTPException(status_code=404, detail="Item not found by id")
     item_id = data.item_id
-    signature = data.signature
+    delta = compute_delta(data.signature)
+    weight = compute_weight(delta)
+    baseline_signature = data.signature.copy()
 
-    items[item_id]["signature"] = signature
-    items[item_id]["weight"] = sum(signature)
-    return {"item_id": item_id, "name": items[item_id]["name"], "signature": signature, "weight": sum(signature)}
+    items[item_id]["signature"] = delta
+    items[item_id]["weight"] = weight
+    return {"item_id": item_id, "name": items[item_id]["name"], "signature": delta, "weight": weight}
 
 #check current state
 @app.get("/items")
