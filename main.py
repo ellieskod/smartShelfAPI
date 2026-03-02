@@ -121,7 +121,7 @@ def update(data: SensorUpdate):
             item["signature"] = delta
             item["weight"] = weight
             items[match_id] = item
-            return {"event": "returned", "item_id": match_id, "name": item["name"]}
+            return {"event": "returned", "item_id": match_id, "name": item["name"], "new_weight": weight}
 
         match_id = find_match(delta, removed_items)
         if match_id:
@@ -129,7 +129,7 @@ def update(data: SensorUpdate):
             item["signature"] = delta
             item["weight"] = weight
             items[match_id] = item
-            return {"event": "returned", "item_id": match_id, "name": item["name"]}
+            return {"event": "returned", "item_id": match_id, "name": item["name"], "new_weight": weight}
 
     return {"event": "no_change"}
 
