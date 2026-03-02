@@ -1,7 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from secrets import token_secret
+from config import token_secret
+
+
 
 app = FastAPI()
 
@@ -11,8 +13,8 @@ items = {} #id: {name, signature}
 removed_items = {} #id
 next_id = 1
 
-#todo replace with secure token management
-TOKEN = token_secret.token
+#todo: replace with secure token management
+TOKEN = token_secret.TOKEN
 
 #models
 class SensorUpdate(BaseModel):
