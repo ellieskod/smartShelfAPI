@@ -5,6 +5,12 @@ from config import token_secret
 
 app = FastAPI()
 
+#weights for confidence score calculation
+WEIGHT_SCORE = 1.0
+NORMALIZED_SIGNATURE = 2.0
+RAW_SIGNATURE = 1.5
+CONFIDENCE_THRESHOLD = 0.2
+
 # states
 baseline_signature = [0, 0, 0, 0]
 items = {} 
@@ -46,6 +52,8 @@ def compute_delta(data):
 
 def compute_weight(delta):
     return sum(delta)
+
+
 
 #finding the best match for a return when multiple items are removed and returned
 def find_match_return(delta, registry, tolerance=500):
