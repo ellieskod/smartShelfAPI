@@ -11,11 +11,13 @@ NORMALIZED_SIGNATURE = 2.0
 RAW_SIGNATURE = 1.5
 CONFIDENCE_THRESHOLD = 0.2
 
-# states
+#states
 baseline_signature = [0, 0, 0, 0]
 items = {} 
 removed_items = {}
 next_id = 1
+pending_returns = {}
+pending_id_counter = 0
 
 #todo: replace with secure token management
 TOKEN = token_secret.TOKEN
@@ -53,11 +55,11 @@ def compute_delta(data):
 def compute_weight(delta):
     return sum(delta)
 
-#layer 1: euclidean distance on raw signature, same position return
+#euclidean distance on raw signature, same position return
 def euclidean_distance(sig1, sig2):
     return sum((sig1[i] - sig2[i])**2 for i in range(4))**0.5
 
-#layer 2: euclidean distance on normalized signature
+#euclidean distance on normalized signature
 def normalized_distance(sig1, sig2):
     norm1 = sum(sig1)
     norm2 = sum(sig2)
@@ -67,25 +69,9 @@ def normalized_distance(sig1, sig2):
     normalized_sig2 = [sig2[i] / norm2 for i in range(4)]
     return sum((normalized_sig1[i] - normalized_sig2[i])**2 for i in range(4))**0.5
 
-#layer 3: weight elimination + closest match
-#item can only have lost weight, not gained, so we can eliminate any items that have more weight than the returned weight. Then we can find the closest match among the remaining items.
-def have_lost_weight(delta):
-    return sum(delta) < 0
-
-def closest_match(delta, registry):
-    best_id = None
-    best_distance = float('inf')
-    for id, item in registry.items():
-        if not have_lost_weight(delta) and item["weight"] > sum(delta):
-            return 0
-        distance = sum((delta[i] - item["signature"][i])**2 for i in range(4)) ** 0.5
-        if distance < best_distance:
-            best_distance = distance
-            best_id = id
-    return best_id
 
 #confidence score calculation
-#combine weight score, normalized signature score, and raw signature score into a single confidence score. The weight score is based on how close the total weight change is to the expected weight change for the item. The normalized signature score is based on how close the normalized sensor signature is to the expected normalized signature for the item. The raw signature score is based on how close the raw sensor signature is to the expected raw signature for the item. The confidence score is a weighted average of these three scores.
+#combine scores into confidence score. 
 def calculate_confidence(delta, item):
     weight_score = max(0, 1 - abs(sum(delta) - item["weight"]) / max(abs(item["weight"]), 1))
     normalized_score = max(0, 1 - normalized_distance(delta, item["signature"]) / 10)
@@ -93,11 +79,69 @@ def calculate_confidence(delta, item):
     confidence = (WEIGHT_SCORE * weight_score + NORMALIZED_SIGNATURE * normalized_score + RAW_SIGNATURE * raw_score) / (WEIGHT_SCORE + NORMALIZED_SIGNATURE + RAW_SIGNATURE)
     return confidence
 
-#add confidence score to array
 
+def force_resolve():
+    #build a score matrix
+    assignments = {}
+    used_items = set()
+    
+    #sort all (pending_key, candidate_id) pairs by score descending
+    all_pairs = []
+    for key, pending in pending_returns.items():
+        for candidate_id, score in pending["scores"].items():
+            all_pairs.append((score, key, candidate_id))
+    all_pairs.sort(reverse=True)
+    
+    used_keys = set()
+    for score, key, candidate_id in all_pairs:
+        if key not in used_keys and candidate_id not in used_items:
+            assignments[key] = candidate_id
+            used_keys.add(key)
+            used_items.add(candidate_id)
+    
+    return assignments
 
-# compare confidence scores for returned items 
+#compare confidence scores for returned items 
+def resolve_pending():
+    global pending_returns, removed_items, items
+    
+    if not pending_returns:
+        return None
+    
+    #build best match for each pending return
+    assignments = {}
+    for key, pending in pending_returns.items():
+        best_id = max(pending["scores"], key=lambda id: pending["scores"][id])
+        assignments[key] = best_id
+    
+    #check for conflicts
+    assigned_items = list(assignments.values())
+    has_conflict = len(assigned_items) != len(set(assigned_items))
+    all_returned = len(pending_returns) == len(removed_items) + len(assignments)
 
+    if has_conflict and not all_returned:
+        #wait for more returns
+        return None  
+
+    #force resolve by best score if all returned, otherwise normal resolve
+    if has_conflict:
+        assignments = force_resolve()
+        if not assignments:
+            return None
+
+    #finalize
+    resolved = []
+    for key, match_id in assignments.items():
+        delta = pending_returns[key]["delta"]
+        weight = compute_weight(delta)
+        item = removed_items.pop(match_id)
+        item["signature"] = delta
+        item["weight"] = weight
+        items[match_id] = item
+        resolved.append({"item_id": match_id, "name": item["name"], "new_weight": weight})
+    
+    pending_returns.clear()
+    return resolved
 
     
 
@@ -116,28 +160,46 @@ async def root():
 def update(data: SensorUpdate):
     check_token(data.token)
     global baseline_signature, next_id
-
     delta = compute_delta(data.signature)
     weight = compute_weight(delta)
     baseline_signature = data.signature.copy()
 
-    #remove
     if weight < 0:
-        match_id = find_match([-d for d in delta], items)
-        if match_id:
-            removed_items[match_id] = items.pop(match_id)
-            return {"event": "removed", "item_id": match_id, "name": removed_items[match_id]["name"]}
+        scores = {id: calculate_confidence([-d for d in delta], item) for id, item in items.items()}
+        best_id = max(scores, key=scores.get)
+        if scores[best_id] > CONFIDENCE_THRESHOLD:
+            removed_items[best_id] = items.pop(best_id)
+            return {"event": "removed", "item_id": best_id, "name": removed_items[best_id]["name"]}
+        
         return {"event": "removed", "item_id": None, "name": "unknown"}
 
-    #if just one item removed
-    if len(removed_items) == 1:
-        match_id = list(removed_items.keys())[0]
-        items[match_id] = removed_items.pop(match_id)
-        return {"event": "returned", "item_id": match_id, "name": items[match_id]["name"]}
+    #remove
+    if weight > 0:
+        #single item removed, no matching needed
+        if len(removed_items) == 1:
+            match_id = list(removed_items.keys())[0]
+            item = removed_items.pop(match_id)
+            item["signature"] = delta
+            item["weight"] = weight
+            items[match_id] = item
+            return {"event": "returned", "item_id": match_id, "name": items[match_id]["name"], "new_weight": weight}
+
+        #multiple items removed, calculate scores
+        scores = {id: calculate_confidence(delta, item) for id, item in removed_items.items()}
+        global pending_id_counter
+        pending_id_counter += 1
+        pending_returns[pending_id_counter] = {"delta": delta, "scores": scores}
+        
+        #try to resolve all pending returns without conflicts
+        resolved = resolve_pending()
+        if resolved:
+            return {"event": "returned", "resolved": resolved}
+   
+        return {"event": "pending", "message": "waiting for more returns"}
+
+    #nothing changed
+    return {"event": "no_change", "message": "baseline updated", "baseline": baseline_signature}
     
-
-    return {"event": "no_change"}
-
 #add new item name to registry
 @app.post("/add_item")
 def add_item(data: AddItem):
