@@ -11,6 +11,9 @@ NORMALIZED_SIGNATURE = 2.0
 RAW_SIGNATURE = 1.5
 CONFIDENCE_THRESHOLD = 0.2
 
+#3 percent margin
+MARGIN = 1.03 
+
 #states
 baseline_signature = [0, 0, 0, 0]
 items = {} 
@@ -18,6 +21,7 @@ removed_items = {}
 next_id = 1
 pending_returns = {}
 pending_id_counter = 0
+pending_candidates = {} 
 
 #todo: replace with secure token management
 TOKEN = token_secret.TOKEN
@@ -46,8 +50,13 @@ class Item(BaseModel):
 class GetItems(BaseModel):
     token: str
 
+class DeleteItem(BaseModel):
+    token: str
+    item_id: int
 
-#helpers
+
+
+####helpers
 
 def compute_delta(data):
     return [data[i] - baseline_signature[i] for i in range(4)]
@@ -73,10 +82,17 @@ def normalized_distance(sig1, sig2):
 #confidence score calculation
 #combine scores into confidence score. 
 def calculate_confidence(delta, item):
+    returned_weight = sum(delta)
+
+    #item cannot have higher weight at return (with margin)
+    if returned_weight > item["weight"] * MARGIN:
+        return 0
+    
     weight_score = max(0, 1 - abs(sum(delta) - item["weight"]) / max(abs(item["weight"]), 1))
     normalized_score = max(0, 1 - normalized_distance(delta, item["signature"]) / 10)
     raw_score = max(0, 1 - euclidean_distance(delta, item["signature"]) / 10)
     confidence = (WEIGHT_SCORE * weight_score + NORMALIZED_SIGNATURE * normalized_score + RAW_SIGNATURE * raw_score) / (WEIGHT_SCORE + NORMALIZED_SIGNATURE + RAW_SIGNATURE)
+    
     return confidence
 
 
@@ -108,6 +124,9 @@ def resolve_pending():
     if not pending_returns:
         return None
     
+    if len(removed_items) > 0:
+        return None
+
     #build best match for each pending return
     assignments = {}
     for key, pending in pending_returns.items():
@@ -126,6 +145,7 @@ def resolve_pending():
     #force resolve by best score if all returned, otherwise normal resolve
     if has_conflict:
         assignments = force_resolve()
+        
         if not assignments:
             return None
 
@@ -143,15 +163,12 @@ def resolve_pending():
     pending_returns.clear()
     return resolved
 
-    
-
 #check token
 def check_token(token):
     if token != TOKEN:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 #endpoints
-
 @app.get("/")
 async def root():
     return {"message": "ok", "status": "200"}
@@ -232,3 +249,15 @@ def register_item(data: RegisterItem):
 def get_items(token: str):
     check_token(token)
     return {"items": items, "removed": removed_items, "baseline": baseline_signature}
+
+#completely remove item from registry
+@app.post("/delete")
+def delete_item(data: DeleteItem):
+    check_token(data.token)
+    if data.item_id in items:
+        del items[data.item_id]
+        return {"event": "deleted", "item_id": data.item_id}
+    if data.item_id in removed_items:
+        del removed_items[data.item_id]
+        return {"event": "deleted", "item_id": data.item_id}
+    raise HTTPException(status_code=404, detail="Item not found")    
