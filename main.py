@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from config import token_secret
+import os
 
 app = FastAPI()
 
@@ -24,7 +24,8 @@ pending_id_counter = 0
 pending_candidates = {} 
 
 #todo: replace with secure token management
-TOKEN = token_secret.TOKEN
+TOKEN = os.getenv("API_TOKEN", "devtoken")
+
 
 #models
 class SensorUpdate(BaseModel):
