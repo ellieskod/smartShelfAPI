@@ -24,8 +24,9 @@ pending_id_counter = 0
 pending_candidates = {} 
 
 #todo: replace with secure token management
-token = os.getenv("API_TOKEN", "devtoken")
-print(f"TOKEN loaded: '{token}'")
+TOKEN = os.getenv("API_TOKEN", "devtoken")
+
+print(f"TOKEN loaded: '{TOKEN}'")
 
 #models
 class SensorUpdate(BaseModel):
@@ -65,7 +66,7 @@ def compute_delta(data):
 def compute_weight(delta):
     return sum(delta)
 
-#euclidean distance on raw signature, same position return
+#euclidean distance raw signature, same position return
 def euclidean_distance(sig1, sig2):
     return sum((sig1[i] - sig2[i])**2 for i in range(4))**0.5
 
