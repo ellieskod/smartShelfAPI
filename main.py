@@ -24,8 +24,8 @@ pending_id_counter = 0
 pending_candidates = {} 
 
 #todo: replace with secure token management
-TOKEN = os.getenv("API_TOKEN", "devtoken")
-
+token = os.getenv("API_TOKEN", "devtoken")
+print(f"TOKEN loaded: '{token}'")
 
 #models
 class SensorUpdate(BaseModel):
