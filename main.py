@@ -124,7 +124,7 @@ def resolve_pending():
     if not pending_returns:
         return None
     
-    if len(removed_items) > 0:
+    if len(removed_items) == 0:
         return None
 
     #build best match for each pending return
@@ -136,7 +136,7 @@ def resolve_pending():
     #check for conflicts
     assigned_items = list(assignments.values())
     has_conflict = len(assigned_items) != len(set(assigned_items))
-    all_returned = len(pending_returns) == len(removed_items) + len(assignments)
+    all_returned = len(assignments) == len(removed_items)
 
     if has_conflict and not all_returned:
         #wait for more returns
