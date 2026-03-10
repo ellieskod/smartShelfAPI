@@ -243,12 +243,13 @@ def register_item(data: RegisterItem):
     weight = compute_weight(delta)
     baseline_signature = data.signature.copy()
     
-    #check not already registered signature
-    if(sum(items[item_id]["signature"]) == 0):
+    #register if not given a signature
+    if items[item_id]["signature"] == [0, 0, 0, 0] and items[item_id]["weight"] == 0:
         items[item_id]["signature"] = delta
         items[item_id]["weight"] = weight
         return {"item_id": item_id, "name": items[item_id]["name"], "signature": delta, "weight": weight}
-    return {"item_id": item_id, "name": items[item_id]["name"], "message":"Already registered" }
+
+    return {"item_id": item_id, "name": items[item_id]["name"], "message": "Already registered"}
 
 #check current state
 @app.get("/items")
