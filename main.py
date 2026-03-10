@@ -128,7 +128,11 @@ def resolve_pending():
     
     if len(removed_items) == 0:
         return None
-
+    
+    #wait until all removed items have returned before resolving
+    if len(pending_returns) < len(removed_items):
+        return None
+    
     #build best match for each pending return
     assignments = {}
     for key, pending in pending_returns.items():
@@ -225,7 +229,6 @@ def update(data: SensorUpdate):
 def add_item(data: AddItem):
     check_token(data.token)
     global next_id
-    global baseline_signature
     item_id = next_id
     next_id += 1
     items[item_id] = {"name": data.name, "signature": [0,0,0,0], "weight": 0}
@@ -236,14 +239,19 @@ def add_item(data: AddItem):
 def register_item(data: RegisterItem):
     check_token(data.token)
     global baseline_signature
+    
     if data.item_id not in items:
         raise HTTPException(status_code=404, detail="Item not found by id")
+    
     item_id = data.item_id
     delta = compute_delta(data.signature)
     weight = compute_weight(delta)
     baseline_signature = data.signature.copy()
     
-    #register if not given a signature
+    if sum(delta) < 0: 
+        return {"message":"Weight change must be positive"}
+
+    #register only if signature isnt already set
     if items[item_id]["signature"] == [0, 0, 0, 0] and items[item_id]["weight"] == 0:
         items[item_id]["signature"] = delta
         items[item_id]["weight"] = weight
