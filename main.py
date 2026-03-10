@@ -128,7 +128,11 @@ def resolve_pending():
     
     if len(removed_items) == 0:
         return None
-
+    
+    #wait until all removed items have returned before resolving
+    if len(pending_returns) < len(removed_items):
+        return None
+    
     #build best match for each pending return
     assignments = {}
     for key, pending in pending_returns.items():
@@ -244,6 +248,9 @@ def register_item(data: RegisterItem):
     weight = compute_weight(delta)
     baseline_signature = data.signature.copy()
     
+    if sum(delta) < 0: 
+        return {"message":"Weight change must be positive"}
+
     #register only if signature isnt already set
     if items[item_id]["signature"] == [0, 0, 0, 0] and items[item_id]["weight"] == 0:
         items[item_id]["signature"] = delta
