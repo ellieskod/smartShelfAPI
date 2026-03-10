@@ -228,7 +228,7 @@ def add_item(data: AddItem):
     global baseline_signature
     item_id = next_id
     next_id += 1
-    items[item_id] = {"name": data.name, "signature": baseline_signature.copy(), "weight": 0}
+    items[item_id] = {"name": data.name, "signature": [0,0,0,0], "weight": 0}
     return {"item_id": item_id, "name": data.name}
 
 #register item with sensor signature and id
