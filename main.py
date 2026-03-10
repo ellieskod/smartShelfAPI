@@ -244,7 +244,7 @@ def register_item(data: RegisterItem):
     baseline_signature = data.signature.copy()
     
     #check not already registered signature
-    if(sum(items.signature) != 0):
+    if(sum(items[item_id]["signature"]) == 0):
         items[item_id]["signature"] = delta
         items[item_id]["weight"] = weight
         return {"item_id": item_id, "name": items[item_id]["name"], "signature": delta, "weight": weight}
