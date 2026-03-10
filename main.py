@@ -183,6 +183,7 @@ def update(data: SensorUpdate):
     weight = compute_weight(delta)
     baseline_signature = data.signature.copy()
 
+    #remove
     if weight < 0:
         scores = {id: calculate_confidence([-d for d in delta], item) for id, item in items.items()}
         best_id = max(scores, key=scores.get)
@@ -192,14 +193,14 @@ def update(data: SensorUpdate):
         
         return {"event": "removed", "item_id": None, "name": "unknown"}
 
-    #remove
+    #return
     if weight > 0:
         #single item removed, no matching needed
         if len(removed_items) == 1:
             match_id = list(removed_items.keys())[0]
             item = removed_items.pop(match_id)
             item["signature"] = delta
-            item["weight"] = weight
+            item["weight"] = sum(delta)
             items[match_id] = item
             return {"event": "returned", "item_id": match_id, "name": items[match_id]["name"], "new_weight": weight}
 
