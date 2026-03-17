@@ -220,7 +220,7 @@ def update(data: SensorUpdate):
         best_id = max(scores, key=scores.get)
         if scores[best_id] > CONFIDENCE_THRESHOLD:
             removed_items[best_id] = items.pop(best_id)
-            return {"event": "removed", "item_id": best_id, "name": removed_items[best_id]["name"]}
+            return {"event": "removed", "item_id": best_id, "name": removed_items[best_id]["name"], "scores": scores}
         
         return {"event": "removed", "item_id": None, "name": "unknown"}
 
