@@ -20,7 +20,7 @@ NORMALIZED_SIGNATURE = 2.0
 RAW_SIGNATURE = 1.5
 CONFIDENCE_THRESHOLD = 0.2
 
-#3 percent margin
+#margin
 MARGIN = 1.03 
 
 #states
@@ -183,6 +183,13 @@ def check_token(token):
     if token != TOKEN:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+def get_nonregistered_item():
+    #return latest added item that has no signature or weight set.
+    for id in sorted(items.keys(), reverse=True):
+        if items[id]["signature"] == [0, 0, 0, 0] and items[id]["weight"] == 0:
+            return id
+    return None
+
 #endpoints
 @app.get("/")
 async def root():
@@ -252,7 +259,10 @@ def register_item(data: RegisterItem):
     if data.item_id not in items:
         raise HTTPException(status_code=404, detail="Item not found by id")
     
-    item_id = data.item_id
+    item_id = get_nonregistered_item()
+    if item_id is None:
+        raise HTTPException(status_code=404, detail="Item not found or already registered")
+    
     delta = compute_delta(data.signature)
     weight = compute_weight(delta)
     baseline_signature = data.signature.copy()
