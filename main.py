@@ -45,7 +45,6 @@ class SensorUpdate(BaseModel):
 
 class RegisterItem(BaseModel):
     token: str
-    item_id: int
     signature: list[float]
 
 class AddItem(BaseModel):
