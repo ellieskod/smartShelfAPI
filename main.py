@@ -5,6 +5,15 @@ import os
 
 app = FastAPI()
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5175", "http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 #weights for confidence score calculation
 WEIGHT_SCORE = 1.0
 NORMALIZED_SIGNATURE = 2.0
