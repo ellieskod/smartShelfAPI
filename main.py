@@ -199,9 +199,13 @@ def update(data: SensorUpdate):
     check_token(data.token)
     global baseline_signature, next_id
     delta = compute_delta(data.signature)
+    print(f"delta: {delta}")
     weight = compute_weight(delta)
+    print(f"weight: {weight}")
     baseline_signature = data.signature.copy()
+    print(f"baseline updated: {baseline_signature}")
     register_id = get_nonregistered_item()
+    print(f"register_id: {register_id}")
     
     #if item pending registration, prioritize 
     if register_id is not None and weight > 0:
@@ -229,6 +233,7 @@ def update(data: SensorUpdate):
             item["signature"] = delta
             item["weight"] = sum(delta)
             items[match_id] = item
+            print(f"item returned without matching: {item}")
             return {"event": "returned", "item_id": match_id, "name": items[match_id]["name"], "new_weight": weight}
 
         #multiple items removed, calculate scores
