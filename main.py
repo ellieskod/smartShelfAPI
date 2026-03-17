@@ -16,12 +16,12 @@ app.add_middleware(
 
 #weights for confidence score calculation
 WEIGHT_SCORE = 1.0
-NORMALIZED_SIGNATURE = 2.0
+NORMALIZED_SIGNATURE = 1.0
 RAW_SIGNATURE = 1.5
 CONFIDENCE_THRESHOLD = 0.2
 
 #margin
-MARGIN = 1.03 
+MARGIN = 1.05
 
 #states
 baseline_signature = [0, 0, 0, 0]
