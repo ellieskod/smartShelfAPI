@@ -255,13 +255,10 @@ def register_item(data: RegisterItem):
     check_token(data.token)
     global baseline_signature
     
-    if data.item_id not in items:
-        raise HTTPException(status_code=404, detail="Item not found by id")
-    
     item_id = get_nonregistered_item()
     if item_id is None:
         raise HTTPException(status_code=404, detail="Item not found or already registered")
-    
+
     delta = compute_delta(data.signature)
     weight = compute_weight(delta)
     baseline_signature = data.signature.copy()
