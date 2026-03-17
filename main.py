@@ -201,6 +201,14 @@ def update(data: SensorUpdate):
     delta = compute_delta(data.signature)
     weight = compute_weight(delta)
     baseline_signature = data.signature.copy()
+    register_id = get_nonregistered_item()
+    
+    #if item pending registration, prioritize 
+    if register_id is not None and weight > 0:
+        #register new item
+        items[register_id]["signature"] = delta
+        items[register_id]["weight"] = weight
+        return {"event": "registered", "item_id": register_id, "name": items[register_id]["name"]}
 
     #remove
     if weight < 0:
@@ -248,31 +256,6 @@ def add_item(data: AddItem):
     next_id += 1
     items[item_id] = {"name": data.name, "signature": [0,0,0,0], "weight": 0}
     return {"item_id": item_id, "name": data.name}
-
-#register item with sensor signature and id
-@app.post("/register_item")
-def register_item(data: RegisterItem):
-    check_token(data.token)
-    global baseline_signature
-    
-    item_id = get_nonregistered_item()
-    if item_id is None:
-        raise HTTPException(status_code=404, detail="Item not found or already registered")
-
-    delta = compute_delta(data.signature)
-    weight = compute_weight(delta)
-    baseline_signature = data.signature.copy()
-    
-    if sum(delta) < 0: 
-        return {"message":"Weight change must be positive"}
-
-    #register only if signature isnt already set
-    if items[item_id]["signature"] == [0, 0, 0, 0] and items[item_id]["weight"] == 0:
-        items[item_id]["signature"] = delta
-        items[item_id]["weight"] = weight
-        return {"item_id": item_id, "name": items[item_id]["name"], "signature": delta, "weight": weight}
-
-    return {"item_id": item_id, "name": items[item_id]["name"], "message": "Already registered"}
 
 #check current state
 @app.get("/items")
