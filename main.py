@@ -141,9 +141,15 @@ def resolve_pending():
     if len(pending_returns) < len(removed_items):
         return None
     
+    
     #build best match for each pending return
     assignments = {}
     for key, pending in pending_returns.items():
+        
+        #if no pending
+        if not pending["scores"]:
+            return None
+        
         best_id = max(pending["scores"], key=lambda id: pending["scores"][id])
         assignments[key] = best_id
     
@@ -216,6 +222,9 @@ def update(data: SensorUpdate):
 
     #remove
     if weight < 0:
+        if not items:
+            return {"event": "removed", "item_id": None, "name": "unknown"}
+
         scores = {id: calculate_confidence([-d for d in delta], item) for id, item in items.items()}
         best_id = max(scores, key=scores.get)
         if scores[best_id] > CONFIDENCE_THRESHOLD:
