@@ -266,7 +266,7 @@ def add_item(data: AddItem):
 @app.get("/items")
 def get_items(token: str):
     check_token(token)
-    return {"items": items, "removed": removed_items, "baseline": baseline_signature}
+    return {"items": items, "removed": removed_items, "baseline": baseline_signature, "pending": pending_returns}
 
 #completely remove item from registry
 @app.post("/delete")
