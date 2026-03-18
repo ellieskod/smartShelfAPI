@@ -145,11 +145,6 @@ def resolve_pending():
     #build best match for each pending return
     assignments = {}
     for key, pending in pending_returns.items():
-        
-        #if no pending
-        if not pending["scores"]:
-            return None
-        
         best_id = max(pending["scores"], key=lambda id: pending["scores"][id])
         assignments[key] = best_id
     
@@ -235,6 +230,10 @@ def update(data: SensorUpdate):
 
     #return
     if weight > 0:
+        #no items removed, nothing to match
+        if not removed_items:
+            return {"event": "pending", "message": "no items to return"}
+        
         #single item removed, no matching needed
         if len(removed_items) == 1:
             match_id = list(removed_items.keys())[0]
@@ -245,7 +244,7 @@ def update(data: SensorUpdate):
             print(f"item returned without matching: {item}")
             return {"event": "returned", "item_id": match_id, "name": items[match_id]["name"], "new_weight": weight}
 
-        #multiple items removed, calculate scores
+        #multiple items removed, calculate scores and create pending
         scores = {id: calculate_confidence(delta, item) for id, item in removed_items.items()}
         global pending_id_counter
         pending_id_counter += 1
