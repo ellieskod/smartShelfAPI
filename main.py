@@ -30,7 +30,7 @@ removed_items = {}
 next_id = 1
 pending_returns = {}
 pending_id_counter = 0
-pending_candidates = {} 
+pending_candidates = {}
 
 #todo: replace with secure token management
 TOKEN = os.getenv("API_TOKEN", "devtoken")
@@ -200,13 +200,10 @@ def update(data: SensorUpdate):
     check_token(data.token)
     global baseline_signature, next_id
     delta = compute_delta(data.signature)
-    print(f"delta: {delta}")
     weight = compute_weight(delta)
-    print(f"weight: {weight}")
     baseline_signature = data.signature.copy()
-    print(f"baseline updated: {baseline_signature}")
     register_id = get_nonregistered_item()
-    print(f"register_id: {register_id}")
+
     
     #if item pending registration, prioritize 
     if register_id is not None and weight > 0:
@@ -218,7 +215,13 @@ def update(data: SensorUpdate):
     #remove
     if weight < 0:
         if not items:
-            return {"event": "removed", "item_id": None, "name": "unknown"}
+            return {"event": "removed", "item_id": None, "name": "nothing to remove"}
+
+        #if only one item
+        if len(items) == 1:
+            match_id = list(items.keys())[0]
+            removed_items[match_id] = items.pop(match_id)
+            return {"event": "removed", "item_id": match_id, "name": removed_items[match_id]["name"], "scores": {match_id: 1.0}}
 
         scores = {id: calculate_confidence([-d for d in delta], item) for id, item in items.items()}
         best_id = max(scores, key=scores.get)
